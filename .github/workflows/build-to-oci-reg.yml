@@ -1,0 +1,70 @@
+# A reusable workflow that builds a container image with Podman and publishes it to an OCI-compatible registry. 
+
+name: Build Image and Push to OCI Registry
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      oci-registry:
+        required: false
+        type: string
+        default: 'docker.io'
+      oci-repo:
+        required: true
+        type: string
+      tag-prefix:
+        required: true
+        type: string
+    secrets:
+      oci-reg-id:
+        required: true
+      oci-reg-token:
+        required: true
+
+jobs:
+  build-image-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show Environment Info
+        run: |
+          echo "Working Directory: ${{ inputs.working-directory }}"
+          echo "OCI Repository: ${{ inputs.oci-repo }}"
+          echo "Tag Prefix: ${{ inputs.tag-prefix }}"
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_REF: $GITHUB_REF"
+          echo "GITHUB_SHA: $GITHUB_SHA"
+          echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME"
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.ref }} 
+
+      - name: Get Short Commit SHA
+        id: vars
+        shell: bash
+        run: |
+          echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to OCI Registry
+        run: echo "${{ secrets.oci-reg-token }}" | podman login ${{ inputs.oci-registry }} -u "${{ secrets.oci-reg-id }}" --password-stdin
+
+      - name: Build OCI Image and Tag with Commit SHA
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          podman build -t "${{ inputs.oci-registry }}/${{ secrets.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" .
+
+      - name: Tag Image as latest
+        run: |
+          podman tag "${{ inputs.oci-registry }}/${{ secrets.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" "${{ inputs.oci-registry }}/${{ secrets.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-latest"
+          echo "${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }} tagged as latest."
+
+      - name: Push to OCI Registry
+        run: |
+          podman push "${{ inputs.oci-registry }}/${{ secrets.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}"
+          podman push "${{ inputs.oci-registry }}/${{ secrets.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-latest"

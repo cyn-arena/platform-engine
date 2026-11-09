@@ -1,0 +1,22 @@
+# This test/demo workflow calls the reusable build-to-oci-reg workflow
+name: Build Image and Push to OCI Registry (TEST)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-reusable-workflow:
+    uses: cyn-arena/platform-engine/.github/workflows/build-to-oci-reg.yml@rel/26.07
+    with:
+      ## the App directory containing the source codes and most importantly Dockerfile
+      working-directory: apps/dolittle
+      ## the OCI Registry name (optional, default is docker.io)
+      #oci-registry: docker.io
+      # the OCI Registry Repo name
+      oci-repo: dvapps
+      ## the app prefix part of the image tag [app_prefix]-[short_commit_sha]
+      tag-prefix: dolittle
+    secrets:
+      ## the Actions secrets created in the App repo and NOT this (platform-engine) repo
+      oci-reg-id: ${{ secrets.OCI_REG_ID }}
+      oci-reg-token: ${{ secrets.OCI_REG_TOKEN }}

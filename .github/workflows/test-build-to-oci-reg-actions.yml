@@ -1,0 +1,16 @@
+name: Build Image and Push to OCI Registry (TEST)
+
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: your-org/your-repo/.github/actions/build-to-oci-reg@main
+        with:
+          working-directory: ./app/dolittle
+          oci-repo: dvapps
+          tag-prefix: dolittle
+          oci-reg-id: ${{ secrets.OCI_REG_ID }}
+          oci-reg-token: ${{ secrets.OCI_REG_TOKEN }}

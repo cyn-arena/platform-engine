@@ -1,0 +1,62 @@
+# .github/actions/build-to-oci/action.yml
+name: 'Build Image and Push to OCI Registry'
+description: 'Builds a container image with Podman, pushes to an OCI registry and tags image with Commit Hash & latest tags'
+
+inputs:
+  working-directory:
+    required: true
+    type: string
+  oci-registry:
+    required: false
+    type: string
+    default: 'docker.io'
+  oci-repo:
+    required: true
+    type: string
+  tag-prefix:
+    required: true
+    type: string
+  oci-reg-id:
+    required: true
+  oci-reg-token:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Show Environment Info
+      shell: bash
+      run: |
+        echo "Working Directory: ${{ inputs.working-directory }}"
+        echo "OCI Repository: ${{ inputs.oci-repo }}"
+        echo "Tag Prefix: ${{ inputs.tag-prefix }}"
+        echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get Short Commit SHA
+      id: vars
+      shell: bash
+      run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+    - name: Authenticate to OCI Registry
+      shell: bash
+      run: echo "${{ inputs.oci-reg-token }}" | podman login ${{ inputs.oci-registry }} -u "${{ inputs.oci-reg-id }}" --password-stdin
+
+    - name: Build OCI Image and Tag with Commit SHA
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        podman build -t "${{ inputs.oci-registry }}/${{ inputs.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" .
+
+    - name: Tag Image as latest
+      shell: bash
+      run: |
+        podman tag "${{ inputs.oci-registry }}/${{ inputs.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}" "${{ inputs.oci-registry }}/${{ inputs.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-latest"
+
+    - name: Push to OCI Registry
+      shell: bash
+      run: |
+        podman push "${{ inputs.oci-registry }}/${{ inputs.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-${{ steps.vars.outputs.sha_short }}"
+        podman push "${{ inputs.oci-registry }}/${{ inputs.oci-reg-id }}/${{ inputs.oci-repo }}:${{ inputs.tag-prefix }}-latest"
