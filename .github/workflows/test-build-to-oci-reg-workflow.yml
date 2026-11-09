@@ -1,12 +1,12 @@
 # This test/demo workflow calls the reusable build-to-oci-reg workflow
-name: Build Image and Push to OCI Registry (TEST)
+name: TEST (Workflow) - Build Image and Push to OCI Registry
 
 on:
   workflow_dispatch:
 
 jobs:
   call-reusable-workflow:
-    uses: cyn-arena/platform-engine/.github/workflows/build-to-oci-reg.yml@rel/26.07
+    uses: cyn-arena/platform-engine/.github/workflows/build-to-oci-reg.yml@main
     with:
       ## the App directory containing the source codes and most importantly Dockerfile
       working-directory: apps/dolittle
